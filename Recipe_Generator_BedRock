@@ -1,0 +1,81 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Choice",
+  "States": {
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.restricoes",
+          "StringEquals": "Não",
+          "Next": "Receitas sem restrição"
+        }
+      ],
+      "Default": "Receitas com restrição"
+    },
+    "Receitas sem restrição": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:sa-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content.$": "States.Format('Ideias de receitas culinárias {}', $.TipoDeReceita)"
+            }
+          ]
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "ResultPath": "$.result_one",
+      "ResultSelector": {
+        "result_one.$": "$.Body.content"
+      },
+      "Next": "Receitas geradas por IA sem restrição"
+    },
+    "Receitas geradas por IA sem restrição": {
+      "Type": "Pass",
+      "Parameters": {
+        "convo_one.$": "States.Format('{}\n{}', $.TipoDeReceita, $.result_one.result_one)"
+      },
+      "ResultPath": "$.convo_one",
+      "End": true
+    },
+    "Receitas com restrição": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:sa-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content.$": "States.Format('Crie uma receita de {} com as seguintes restrições: {}', $.TipoDeReceita, $.restricoes)"
+            }
+          ]
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "ResultPath": "$.result_one",
+      "ResultSelector": {
+        "result_one.$": "$.Body.content"
+      },
+      "Next": "Receitas geradas por IA com restrição"
+    },
+    "Receitas geradas por IA com restrição": {
+      "Type": "Pass",
+      "Parameters": {
+        "convo_one.$": "States.Format('{}\n{}', $.TipoDeReceita, $.result_one.result_one)"
+      },
+      "ResultPath": "$.convo_one",
+      "End": true
+    }
+  }
+}
